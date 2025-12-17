@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata , Viewport} from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner"; // ✅ 引入通知功能
 import "./globals.css";
