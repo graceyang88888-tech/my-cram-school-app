@@ -26,6 +26,11 @@ export const metadata: Metadata = {
     title: "我的補習班",
     statusBarStyle: "default",
   },
+  // ✅ 新增這一段：告訴 iPhone 去哪裡找圖示
+  icons: {
+    icon: "/icon.png",      // 給網頁瀏覽器看的 favicon
+    apple: "/icon.png",     // 🍎 給 iPhone 桌面捷徑看的圖示
+  },
 };
 
 // 2. 新增這段 Viewport 設定
