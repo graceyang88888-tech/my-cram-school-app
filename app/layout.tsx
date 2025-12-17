@@ -21,8 +21,21 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "我的補習班 App",
   description: "專業補習班管理系統",
+  appleWebApp: {
+    capable: true,
+    title: "我的補習班",
+    statusBarStyle: "default",
+  },
 };
 
+// 2. 新增這段 Viewport 設定
+export const viewport: Viewport = {
+  themeColor: "#3b82f6", // 設定手機瀏覽器頂部的顏色
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1, // 禁止縮放，更有 App 的感覺
+  userScalable: false,
+};
 export default function RootLayout({
   children,
 }: Readonly<{
