@@ -1,80 +1,93 @@
-// app/(admin)/admin/courses/page.tsx
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Users, Calendar, DollarSign } from "lucide-react";
+"use client";
+
 import Link from "next/link";
+import { Plus, Users, Calendar, ArrowRight } from "lucide-react";
 
-export default async function CoursesPage() {
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() { return cookieStore.getAll() },
-        setAll(cookiesToSet) { try { cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options)) } catch {} }
-      },
-    }
-  );
+// 假資料 (之後你可以換成從資料庫讀取)
+const courses = [
+  {
+    id: "1",
+    name: "國中數學進階班",
+    teacher: "王小明",
+    time: "週一 18:30 - 20:30",
+    students: 12,
+  },
+  {
+    id: "2",
+    name: "高中英文衝刺班",
+    teacher: "陳美麗",
+    time: "週三 19:00 - 21:00",
+    students: 25,
+  },
+  {
+    id: "3",
+    name: "國小作文創意班",
+    teacher: "李大同",
+    time: "週六 10:00 - 12:00",
+    students: 8,
+  },
+];
 
-  // 讀取課程資料
-  const { data: courses } = await supabase
-    .from("courses")
-    .select("*")
-    .order("id", { ascending: true });
-
+export default function CoursesPage() {
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-6 max-w-6xl mx-auto space-y-6">
+      {/* 頁面標題與動作列 */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">課程管理</h2>
-          <p className="text-gray-500">管理開課資訊與班級學生</p>
+          <h1 className="text-3xl font-bold tracking-tight">課程管理</h1>
+          <p className="text-muted-foreground mt-1">
+            管理所有開設的課程與點名狀況
+          </p>
         </div>
-        <Button>新增課程</Button>
+        <button className="inline-flex items-center justify-center rounded-md bg-black text-white px-4 py-2 text-sm font-medium hover:bg-black/90 transition-colors">
+          <Plus className="mr-2 h-4 w-4" />
+          新增課程
+        </button>
       </div>
 
-      {/* 課程列表 - 改用卡片式設計，比較適合展示班級 */}
+      {/* 課程列表 (卡片式設計) */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {courses?.map((course) => (
-          <Card key={course.id} className="flex flex-col">
-            <CardHeader>
-              <CardTitle>{course.name}</CardTitle>
-              <CardDescription>{course.teacher} 老師</CardDescription>
-            </CardHeader>
-            <CardContent className="flex-1 space-y-2">
-              <div className="flex items-center text-sm text-gray-500">
-                <Calendar className="mr-2 h-4 w-4" />
-                {course.schedule}
+        {courses.map((course) => (
+          <div
+            key={course.id}
+            className="group relative flex flex-col justify-between rounded-xl border bg-white p-6 shadow-sm transition-all hover:shadow-md"
+          >
+            <div className="space-y-4">
+              {/* 課程標題 */}
+              <div className="space-y-2">
+                <h3 className="font-semibold text-xl leading-none tracking-tight">
+                  {course.name}
+                </h3>
+                <p className="text-sm text-gray-500 font-medium">
+                  {course.teacher} 老師
+                </p>
               </div>
-              <div className="flex items-center text-sm text-gray-500">
-                <DollarSign className="mr-2 h-4 w-4" />
-                ${course.fee?.toLocaleString()}
+
+              {/* 課程資訊 */}
+              <div className="space-y-2 text-sm text-gray-600">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-gray-400" />
+                  <span>{course.time}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-gray-400" />
+                  <span>{course.students} 位學生</span>
+                </div>
               </div>
-            </CardContent>
-            <CardFooter className="flex justify-between border-t p-4 bg-gray-50">
-               {/* 這裡我們預留兩個重要功能的入口 */}
-              <Button variant="outline" size="sm" asChild>
-                <Link href={`/admin/courses/${course.id}/students`}>
-                  <Users className="mr-2 h-4 w-4" />
-                  管理學生
-                </Link>
-              </Button>
-                <Button size="sm" asChild>
-                    <Link href={`/admin/courses/${course.id}/attendance`}>
-                    開始點名
-                     </Link>
-                </Button>
-            </CardFooter>
-          </Card>
+            </div>
+
+            {/* 底部按鈕區 */}
+            <div className="mt-6 flex items-center gap-3 pt-4 border-t">
+              {/* ✅ 重點修改：這裡改用 Query Param (?id=...) */}
+              <Link
+                href={`/admin/courses/attendance?id=${course.id}`}
+                className="flex-1 inline-flex items-center justify-center rounded-md bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 transition-colors"
+              >
+                課程點名
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </div>
+          </div>
         ))}
       </div>
     </div>
