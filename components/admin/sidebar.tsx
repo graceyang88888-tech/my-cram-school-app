@@ -1,5 +1,8 @@
-// components/admin/sidebar.tsx
+"use client"; // 👈 1. 轉成 Client Component
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { createClient } from "@supabase/supabase-js"; // 改用前端 SDK
 import { 
   LayoutDashboard, 
   Users, 
@@ -7,7 +10,12 @@ import {
   CreditCard, 
   LogOut 
 } from "lucide-react";
-import { signOutAction } from "@/actions/auth-actions";
+
+// 初始化 Supabase Client
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 const menuItems = [
   {
@@ -33,6 +41,18 @@ const menuItems = [
 ];
 
 export function Sidebar() {
+  const router = useRouter();
+
+  // 2. 建立前端登出函式
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      router.replace("/login"); // 登出後跳轉回登入頁
+    } catch (error) {
+      console.error("登出失敗", error);
+    }
+  };
+
   return (
     <div className="flex h-full w-64 flex-col border-r bg-white shadow-sm">
       {/* 1. Logo 區域 */}
@@ -54,17 +74,15 @@ export function Sidebar() {
         ))}
       </nav>
 
-      {/* 3. 底部登出按鈕 */}
+      {/* 3. 底部登出按鈕 (移除 Form，改用 onClick) */}
       <div className="border-t p-4">
-        <form action={signOutAction}>
-          <button
-            type="submit"
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-red-500 hover:bg-red-50"
-          >
-            <LogOut className="h-5 w-5" />
-            <span className="font-medium">登出系統</span>
-          </button>
-        </form>
+        <button
+          onClick={handleLogout}
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-red-500 hover:bg-red-50 transition-colors"
+        >
+          <LogOut className="h-5 w-5" />
+          <span className="font-medium">登出系統</span>
+        </button>
       </div>
     </div>
   );

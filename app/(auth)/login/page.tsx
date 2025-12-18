@@ -1,4 +1,8 @@
-import { loginAction } from "@/actions/auth-actions";
+"use client"; // 👈 1. 變成 Client Component
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@supabase/supabase-js"; // 直接使用 JS SDK
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -10,18 +14,51 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Loader2 } from "lucide-react"; // 引入轉圈圈圖示
 
-// 定義 Props 型別，確保相容性
-type Props = {
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
-};
+// 初始化 Supabase Client (前端專用)
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
-export default async function LoginPage(props: Props) {
-  // 1. 安全地解析 searchParams (加上 await)
-  const searchParams = await props.searchParams;
-  
-  // 2. 安全地讀取 error (如果沒有 error 則為 undefined)
-  const error = searchParams?.error;
+export default function LoginPage() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // 2. 改用 onSubmit 處理函式，而不是 Server Action
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
+
+    try {
+      // 3. 直接在前端呼叫 Supabase 登入
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (signInError) {
+        throw signInError;
+      }
+
+      // 登入成功，跳轉到首頁或 Admin 頁面
+      router.push("/admin/courses"); 
+      router.refresh(); // 強制刷新以更新狀態
+
+    } catch (err: any) {
+      console.error("登入失敗:", err);
+      setError(err.message || "登入失敗，請檢查帳號密碼");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="flex h-screen w-full items-center justify-center bg-gray-50 px-4">
@@ -35,11 +72,12 @@ export default async function LoginPage(props: Props) {
           </CardDescription>
         </CardHeader>
 
-        <form action={loginAction}>
+        {/* 4. 改成 onSubmit */}
+        <form onSubmit={handleLogin}>
           <CardContent className="grid gap-4">
             
-            {/* 錯誤訊息顯示區 - 這裡檢查 error 是否存在且是字串 */}
-            {typeof error === "string" && error && (
+            {/* 錯誤訊息顯示區 */}
+            {error && (
               <div className="flex items-center gap-2 rounded-md bg-red-50 p-3 text-sm text-red-600 border border-red-200">
                 <p>{error}</p>
               </div>
@@ -53,6 +91,7 @@ export default async function LoginPage(props: Props) {
                 type="email"
                 placeholder="admin@test.com"
                 required
+                disabled={loading}
               />
             </div>
             <div className="grid gap-2">
@@ -62,12 +101,20 @@ export default async function LoginPage(props: Props) {
                 name="password"
                 type="password"
                 required
+                disabled={loading}
               />
             </div>
           </CardContent>
           <CardFooter>
-            <Button type="submit" className="w-full">
-              登入
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  登入中...
+                </>
+              ) : (
+                "登入"
+              )}
             </Button>
           </CardFooter>
         </form>

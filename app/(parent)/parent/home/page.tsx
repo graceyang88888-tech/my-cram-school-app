@@ -1,57 +1,98 @@
-// app/(parent)/parent/home/page.tsx
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
-import { signOutAction } from "@/actions/auth-actions";
+"use client"; // 👈 1. 轉成 Client Component
+
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@supabase/supabase-js"; // 改用客戶端 SDK
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   LogOut, User, Calendar, 
   Phone, MessageCircle, FileText, 
-  Trophy, TrendingUp 
+  Trophy, TrendingUp, Loader2 
 } from "lucide-react";
 
-export default async function ParentHomePage() {
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() { return cookieStore.getAll() },
-        setAll(cookiesToSet) { try { cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options)) } catch {} }
-      },
-    }
-  );
+// 初始化 Supabase Client (前端專用)
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+export default function ParentHomePage() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [students, setStudents] = useState<any[]>([]);
+  const [user, setUser] = useState<any>(null);
 
-  // 修改重點：這裡多撈了 grades (成績)
-  const { data: students } = await supabase
-    .from("students")
-    .select(`
-      id, name, school,
-      attendance (date, status, courses ( name )),
-      grades ( exam_name, score, date, courses ( name ) )
-    `)
-    .eq("parent_user_id", user.id);
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // 1. 檢查登入狀態
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        
+        if (authError || !user) {
+          router.replace("/login"); // 沒登入就踢回登入頁
+          return;
+        }
+        setUser(user);
+
+        // 2. 抓取學生資料 (包含成績與缺席)
+        const { data: studentsData, error: dbError } = await supabase
+          .from("students")
+          .select(`
+            id, name, school,
+            attendance (date, status, courses ( name )),
+            grades ( exam_name, score, date, courses ( name ) )
+          `)
+          .eq("parent_user_id", user.id);
+
+        if (dbError) throw dbError;
+        setStudents(studentsData || []);
+
+      } catch (error) {
+        console.error("讀取資料失敗:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [router]);
+
+  // 3. 登出功能 (前端版)
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.replace("/login");
+  };
+
+  // 載入中畫面
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
       {/* 頂部 Header */}
-      <div className="bg-linear-to-r from-blue-600 to-indigo-700 text-white p-6 pb-12 rounded-b-[2rem] shadow-lg relative z-10">
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-6 pb-12 rounded-b-[2rem] shadow-lg relative z-10">
         <div className="flex justify-between items-center mb-4">
           <div>
             <h1 className="text-2xl font-bold">早安，家長！</h1>
             <p className="text-blue-100 text-sm">歡迎使用電子聯絡簿</p>
           </div>
-          <form action={signOutAction}>
-            <Button variant="ghost" size="icon" className="text-white hover:bg-white/20">
-              <LogOut className="h-5 w-5" />
-            </Button>
-          </form>
+          
+          {/* 登出按鈕 (改用 onClick) */}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={handleLogout}
+            className="text-white hover:bg-white/20"
+          >
+            <LogOut className="h-5 w-5" />
+          </Button>
         </div>
       </div>
 
@@ -101,7 +142,7 @@ export default async function ParentHomePage() {
                     </button>
                 </div>
 
-                {/* --- 新增：成績紀錄區塊 --- */}
+                {/* --- 成績紀錄區塊 --- */}
                 <div>
                     <div className="flex items-center justify-between px-2 mb-2">
                         <h3 className="font-bold text-gray-700 flex items-center gap-2">
@@ -158,9 +199,9 @@ export default async function ParentHomePage() {
                               </div>
                               <Badge 
                                   className={`${
-                                      record.status === 'present' ? 'bg-green-100 text-green-700 hover:bg-green-100' : 
-                                      record.status === 'late' ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-100' : 
-                                      'bg-red-100 text-red-700 hover:bg-red-100'
+                                    record.status === 'present' ? 'bg-green-100 text-green-700 hover:bg-green-100' : 
+                                    record.status === 'late' ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-100' : 
+                                    'bg-red-100 text-red-700 hover:bg-red-100'
                                   } border-0 px-3 py-1`}
                               >
                                   {record.status === 'present' ? '準時' : record.status === 'late' ? '遲到' : '缺席'}
